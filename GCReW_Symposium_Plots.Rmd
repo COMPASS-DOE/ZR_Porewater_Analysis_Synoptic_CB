@@ -1,0 +1,800 @@
+---
+title: "GCReW Symposium Porewater Data Project"
+author: "Zoe Read"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    toc: true
+    number_sections: true
+
+output_dir: "To Be Reviewed/PDF"
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(stringr)
+library(readxl)
+library(tidyr)
+library(tibble)
+library(openxlsx)
+library(knitr)
+library(curl)
+
+```
+
+##Grab Compiled Porewater Data Files
+```{r Pull in 2022-2024 data files, message=FALSE, include=FALSE}
+
+##SO4/Cl Data
+so4_cl_data <- read.csv(curl("https://raw.githubusercontent.com/COMPASS-DOE/synoptic-discrete-data/refs/heads/main/Porewater/Sulfate_Chloride/Synoptic_CB/COMPASS_SynopticCB_SO4_Cl_AllData.csv"))
+
+##H2S Data
+h2s_data <- read.csv(curl("https://raw.githubusercontent.com/COMPASS-DOE/synoptic-discrete-data/refs/heads/main/Porewater/Sulfide/Synoptic_CB/COMPASS_SynopticCB_Sulfide_AllData.csv"))
+
+##DOC Data
+doc_data <- read.csv(curl("https://raw.githubusercontent.com/COMPASS-DOE/synoptic-discrete-data/refs/heads/main/Porewater/DOC/Synoptic-CB/COMPASS_SynopticCB_PW_DOC_AllData.csv"))
+
+```
+
+
+## Barplots of SO4/Cl by Year, Site, and Zone
+```{r Barplots of SO4/Cl, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
+
+data_plotting_so4_cl <- so4_cl_data %>%
+  filter(!str_detect(Zone, "SW")) 
+
+#Order by Zone from Upland to Surface Water
+data_plotting_so4_cl$Zone = factor(data_plotting_so4_cl$Zone, levels = c("UP", "SWAMP", "TR", "WC"))
+data_plotting_so4_cl <- data_plotting_so4_cl[order(data_plotting_so4_cl$Zone), ]
+
+#Order by Site from SWH, GCW, MSM, GWI order, which is oligohaline to polyhaline
+data_plotting_so4_cl$Site = factor(data_plotting_so4_cl$Site, levels = c("SWH", "GCW", "MSM", "GWI"))
+data_plotting_so4_cl <- data_plotting_so4_cl[order(data_plotting_so4_cl$Site), ]
+
+#Plot samples to get a first look at concentrations (sanity check)
+#group the data for plotting
+data_plotting_so4_cl <- data_plotting_so4_cl %>%
+  group_by(Site, Zone) %>%
+  mutate(row_num = factor(row_number())) %>%  # create row_num as factor per group
+  ungroup()
+
+data_plotting_so4_cl$Date <- as.Date(paste(data_plotting_so4_cl$Year, data_plotting_so4_cl$Month, data_plotting_so4_cl$Day, sep = "-"))
+
+
+#Plot data and change colors based on Zone:
+viz_cl_plot <- ggplot(data_plotting_so4_cl, aes(x = as.character(Year), y = Cl_mM, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey", 
+    "WC" = "#419973"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Chloride (mM)", title = "Samples: Chloride") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+  theme(text = element_text(size = 20))
+
+# viz_cl_plot
+
+
+viz_so4_plot <-  ggplot(data_plotting_so4_cl, aes(x = as.character(Year), y = SO4_mM, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey", 
+    "WC" = "#419973"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Sulfate (mM)", title = "Samples: SO4") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1))+ 
+  theme(text = element_text(size = 20))
+
+# viz_so4_plot
+
+viz_cl_so4_plot <- ggarrange(viz_cl_plot, viz_so4_plot, nrow=2, ncol=1)
+
+# Save as a PNG
+png("Cl_SO4_boxplot_2022-2025.png", width = 2000, height = 1200, res = 100) 
+print(viz_cl_so4_plot)  # For ggplot objects, use print()
+dev.off() 
+
+```
+## Barplots of H2S by Year, Site, and Zone
+```{r Barplots of H2S, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
+
+data_plotting_h2s <- h2s_data %>%
+  filter(!str_detect(Zone, "SW"))
+
+data_plotting_h2s <- data_plotting_h2s %>% filter(!is.na(Year))
+
+#Order by Zone from Upland to Surface Water
+data_plotting_h2s$Zone = factor(data_plotting_h2s$Zone, levels = c("UP", "SWAMP", "TR", "WC"))
+data_plotting_h2s <- data_plotting_h2s[order(data_plotting_h2s$Zone), ]
+
+#Order by Site from SWH, GCW, MSM, GWI order, which is oligohaline to polyhaline
+data_plotting_h2s$Site = factor(data_plotting_h2s$Site, levels = c("SWH", "GCW", "MSM", "GWI"))
+data_plotting_h2s <- data_plotting_h2s[order(data_plotting_h2s$Site), ]
+
+# #Order by Year from 2022-2024
+# data_plotting$Site = factor(data_plotting$Site, levels = c("SWH", "GCW", "MSM", "GWI"))
+# data_plotting <- data_plotting[order(data_plotting$Site), ]
+
+#Plot samples to get a first look at concentrations (sanity check)
+#group the data for plotting
+data_plotting_h2s <- data_plotting_h2s %>%
+  group_by(Site, Zone) %>%
+  mutate(row_num = factor(row_number())) %>%  # create row_num as factor per group
+  ungroup()
+
+data_plotting_h2s$Date <- as.Date(paste(data_plotting_h2s$Year, data_plotting_h2s$Month, data_plotting_h2s$Day, sep = "-"))
+
+
+#Plot data and change colors based on Zone:
+viz_H2S_plot <- ggplot(data_plotting_h2s, aes(x = as.character(Year), y = H2S_mean_uM, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey",
+    "WC" = "#419973"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Sulfide (uM)", title = "Samples: Sulfide") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+  theme(text = element_text(size = 20))
+
+viz_H2S_plot
+
+# Save as a PNG
+png("H2S_boxplot_2022-2025.png", width = 2000, height = 600, res = 100) 
+print(viz_H2S_plot)  # For ggplot objects, use print()
+dev.off() 
+
+```
+
+## Barplots of DOC by Year, Site, and Zone
+```{r Barplots of DOC, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
+
+data_plotting_doc <- doc_data %>%
+  filter(!str_detect(Zone, "SW"))
+
+#Order by Zone from Upland to Surface Water
+data_plotting_doc$Zone = factor(data_plotting_doc$Zone, levels = c("UP", "SWAMP", "TR", "WC", "SW"))
+data_plotting_doc <- data_plotting_doc[order(data_plotting_doc$Zone), ]
+
+#Order by Site from SWH, GCW, MSM, GWI order, which is oligohaline to polyhaline
+data_plotting_doc$Site = factor(data_plotting_doc$Site, levels = c("SWH", "GCW", "MSM", "GWI"))
+data_plotting_doc <- data_plotting_doc[order(data_plotting_doc$Site), ]
+
+#Plot samples to get a first look at concentrations (sanity check)
+#group the data for plotting
+data_plotting_doc <- data_plotting_doc %>%
+  group_by(Site, Zone) %>%
+  mutate(row_num = factor(row_number())) %>%  # create row_num as factor per group
+  ungroup()
+
+data_plotting_doc$Date <- as.Date(paste(data_plotting_doc$Year, data_plotting_doc$Month, data_plotting_doc$Day, sep = "-"))
+
+
+#Plot data and change colors based on Zone:
+viz_NPOC_plot <- ggplot(data_plotting_doc, aes(x = as.character(Year), y = npoc_mgL, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey",
+    "WC" = "#419973",
+    "SW" = "#25ABE6"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "NPOC (mg/L)", title = "Barplot of NPOC by Year, Site and Zone") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+  theme(text = element_text(size = 30))
+
+ viz_NPOC_plot
+ 
+ viz_TDN_plot <- ggplot(data_plotting_doc, aes(x = as.character(Year), y = tdn_mgL, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey",
+    "WC" = "#419973",
+    "SW" = "#25ABE6"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "TDN (mg/L)", title = "Barplot of TDN by Year, Site and Zone") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+  theme(text = element_text(size = 30))
+
+ viz_TDN_plot
+
+ viz_doc_plot <- ggarrange(viz_NPOC_plot, viz_TDN_plot, nrow=2, ncol=1)
+
+ 
+# Save as a PNG
+png("DOC_boxplot_2022-2025.png", width = 2000, height = 1200, res = 100) 
+print(viz_doc_plot)  # For ggplot objects, use print()
+dev.off() 
+
+```
+
+##Combine SO4/Cl and DOC data
+```{r}
+
+doc_so4_data <- merge(doc_data, so4_cl_data, by = c("Year", "Month", "Site", "Zone", "Replicate", "Depth_cm"))
+
+```
+
+##Plot DOC vs SO4/Cl
+```{r}
+
+doc_so4_data <- doc_so4_data %>%
+  filter(!str_detect(Zone, "SW"))
+
+##Different lines for each zone (UP, TR, WC)
+viz_doc_so4_plot <- ggplot(doc_so4_data, aes(x = SO4_ppm, y = npoc_mgL)) +
+  geom_point(aes(color = Zone), size = 3) +
+  geom_smooth(se = FALSE, color = "black") + 
+  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  scale_color_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey",
+    "WC" = "#419973",
+    "SW" = "#25ABE6"
+  )) +
+  theme_classic() +
+  labs(x = "SO4 (ppm)", y = "NPOC (mg/L)", title = "Plot of NPOC vs SO4") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+  theme(text = element_text(size = 30))
+
+ viz_doc_so4_plot
+ 
+
+##Different lines for each zone (UP, TR, WC)
+viz_doc_cl_plot <- ggplot(doc_so4_data, aes(x = Cl_ppm, y = npoc_mgL)) +
+  geom_point(aes(color = Zone), size = 3) +
+  geom_smooth(se = FALSE, color = "black") + 
+  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  scale_color_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey",
+    "WC" = "#419973",
+    "SW" = "#25ABE6"
+  )) +
+  theme_classic() +
+  labs(x = "Cl (ppm)", y = "NPOC (mg/L)", title = "Plot of NPOC vs Cl") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+  theme(text = element_text(size = 30))
+
+viz_doc_cl_plot
+
+
+# Save as a PNG
+png("DOC_versus_SO4.png", width = 2000, height = 1200, res = 100) 
+print(viz_doc_so4_plot)  # For ggplot objects, use print()
+dev.off() 
+
+# Save as a PNG
+png("DOC_versus_Cl.png", width = 2000, height = 1200, res = 100) 
+print(viz_doc_cl_plot)  # For ggplot objects, use print()
+dev.off() 
+
+```
+
+## Barplots of SO4/Cl by Depth
+```{r Barplots of SO4/Cl by Depth, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
+
+#Plot data and change colors based on Zone:
+viz_cl_plot_depth <- ggplot(data_plotting_so4_cl, aes(x = as.character(Depth_cm), y = Cl_mM, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey", 
+    "WC" = "#419973"
+  )) +
+  theme_classic() +
+  labs(x = "Sampling Depth (cm)", y = "Chloride (mM)", title = "Samples: Chloride") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+  theme(text = element_text(size = 30))
+
+viz_cl_plot_depth
+
+
+viz_so4_plot_depth <-  ggplot(data_plotting_so4_cl, aes(x = as.character(Depth_cm), y = SO4_mM, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey", 
+    "WC" = "#419973"
+  )) +
+  theme_classic() +
+  labs(x = "Sampling Depth (cm)", y = "Sulfate (mM)", title = "Samples: SO4") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1))+ 
+  theme(text = element_text(size = 30))
+
+viz_so4_plot_depth
+
+viz_cl_so4_plot_depth <- ggarrange(viz_cl_plot_depth, viz_so4_plot_depth, nrow=2, ncol=1)
+
+# Save as a PNG
+png("Cl_SO4_by_depth.png", width = 2000, height = 1200, res = 100) 
+print(viz_cl_so4_plot_depth)  # For ggplot objects, use print()
+dev.off() 
+
+```
+## Barplots of H2S by Depth
+```{r Barplots of H2S by Depth, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
+
+#Plot data and change colors based on Zone:
+viz_H2S_plot_depth <- ggplot(data_plotting_h2s, aes(x = as.character(Depth_cm), y = H2S_mean_uM, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey",
+    "WC" = "#419973"
+  )) +
+  theme_classic() +
+  labs(x = "Sampling Depth (cm)", y = "Sulfide (uM)", title = "Samples: Sulfide") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+  theme(text = element_text(size = 30))
+
+viz_H2S_plot_depth
+
+# Save as a PNG
+png("H2S_boxplot_by_depth.png", width = 2000, height = 600, res = 100) 
+print(viz_H2S_plot_depth)  # For ggplot objects, use print()
+dev.off() 
+
+```
+
+## Barplots of DOC by Depth
+```{r Barplots of DOC by Depth, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
+
+#Plot data and change colors based on Zone:
+viz_NPOC_plot_depth <- ggplot(data_plotting_doc, aes(x = as.character(Depth_cm), y = npoc_mgL, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey",
+    "WC" = "#419973",
+    "SW" = "#25ABE6"
+  )) +
+  theme_classic() +
+  labs(x = "Sampling Depth (cm)", y = "NPOC (mg/L)", title = "Samples: NPOC") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+  theme(text = element_text(size = 30))
+
+ viz_NPOC_plot_depth
+ 
+ viz_TDN_plot_depth <- ggplot(data_plotting_doc, aes(x = as.character(Depth_cm), y = tdn_mgL, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey",
+    "WC" = "#419973",
+    "SW" = "#25ABE6"
+  )) +
+  theme_classic() +
+  labs(x = "Sampling Depth (cm)", y = "TDN (mg/L)", title = "Samples: TDN") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+  theme(text = element_text(size = 30))
+
+ viz_TDN_plot_depth
+
+ viz_doc_plot_depth <- ggarrange(viz_NPOC_plot_depth, viz_TDN_plot_depth, nrow=2, ncol=1)
+
+ 
+# Save as a PNG
+png("DOC_boxplot_by_depth.png", width = 2000, height = 1200, res = 100) 
+print(viz_doc_plot_depth)  # For ggplot objects, use print()
+dev.off() 
+
+```
+##Plot all analytes by depth
+```{r}
+
+viz_all_analytes_depth <- ggarrange(viz_so4_plot_depth, viz_cl_plot_depth, viz_H2S_plot_depth, viz_NPOC_plot_depth, viz_TDN_plot_depth, nrow=5, ncol=1)
+ 
+# Save as a PNG
+png("Analytes_boxplot_by_depth.png", width = 2000, height = 3000, res = 100) 
+print(viz_all_analytes_depth)  # For ggplot objects, use print()
+dev.off() 
+```
+
+
+
+
+<!-- ## Summarized data for Site and Zone  -->
+<!-- ```{r Summarize and Visualize Data, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300} -->
+
+<!-- ##Make Date Column with just Year and Month for Sample ID -->
+<!-- all_dat_dates <- data_plotting %>% -->
+<!--   mutate( -->
+<!--     YearMonth = if_else( -->
+<!--       Month < 10, -->
+<!--       # Modify the string: -->
+<!--       YearMonth <- paste(data_plotting$Year, data_plotting$Month, sep = "-0"),  -->
+<!--       YearMonth <- paste(data_plotting$Year, data_plotting$Month, sep = "-"),  -->
+<!--     ) -->
+<!--   ) -->
+
+<!-- ##Summarize SO4 and Cl by Date, Site, and Zone -->
+<!-- Dionex_avg <- all_dat_dates %>% -->
+<!--   group_by(Month, Year, Site, Zone) %>% -->
+<!--    dplyr::summarize(mean_SO4 = mean(SO4_mM, na.rm=TRUE),  -->
+<!--             sd_SO4 = sd(SO4_mM, na.rm=TRUE),  -->
+<!--             mean_Cl = mean(Cl_mM, na.rm=TRUE),  -->
+<!--             sd_Cl = sd(Cl_mM, na.rm=TRUE),  -->
+<!--             YearMonth = first(YearMonth)) -->
+
+<!-- # Concatenate with a day (e.g., "01" for the first day) -->
+<!-- Dionex_avg$Date <- paste0(Dionex_avg$YearMonth, "-01") -->
+
+<!-- # Convert to Date object -->
+<!-- Dionex_avg$Date <- as.Date(Dionex_avg$Date) -->
+
+<!-- # Define the specific date breaks you want to display -->
+<!-- specific_breaks <- as.Date(c("2022-01-01", "2023-01-01", "2024-01-01", "2025-01-01")) -->
+
+<!-- viz_cl_plot_avgs <- ggplot(Dionex_avg, aes(x = Date, y = mean_Cl, color = Zone, group = Zone)) + -->
+<!--   geom_point(size = 3) +  -->
+<!--   geom_errorbar(aes(ymin = mean_Cl - sd_Cl, ymax = mean_Cl + sd_Cl), width = 0.2) +  -->
+<!--   geom_line() +  -->
+<!--   facet_grid( ~ Site, scales="free_y") + -->
+<!--   scale_color_manual(values = c( -->
+<!--     "UP" = "#20063B", -->
+<!--     "TR" = "#FFBC42", -->
+<!--     "SWAMP" = "darkgrey", -->
+<!--     "WC" = "#419973", -->
+<!--     "SW" = "#25ABE6" -->
+<!--   )) + -->
+<!--   theme_classic() + -->
+<!--   labs(x = "Date", y = "Chloride (mM)", title = "Samples: Chloride") + -->
+<!--   theme( -->
+<!--     panel.spacing = unit(0.5, "lines"),  -->
+<!--     panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + -->
+<!--   # theme(axis.text.x = element_text(angle = 90, hjust = 0.5))+  -->
+<!--   theme(text = element_text(size = 30))+ -->
+<!--   scale_x_date(breaks = specific_breaks, date_labels = "%Y", expand = expansion(mult = c(0.18, 0.05)))+ -->
+<!--   theme(axis.ticks.x = element_line(linewidth = 1))+ -->
+<!--   theme(axis.ticks.length.x = unit(0.25, "cm")) -->
+
+<!-- # viz_cl_plot_avgs -->
+
+
+<!-- viz_so4_plot_avgs <- ggplot(Dionex_avg, aes(x = Date, y = mean_SO4, color = Zone, group = Zone)) + -->
+<!--   geom_point(size = 3) +  -->
+<!--   geom_errorbar(aes(ymin = mean_SO4 - sd_SO4, ymax = mean_SO4 + sd_SO4), width = 0.2) +  -->
+<!--   geom_line() +  -->
+<!--   facet_grid( ~ Site, scales="free_y") + -->
+<!--   scale_color_manual(values = c( -->
+<!--     "UP" = "#20063B", -->
+<!--     "TR" = "#FFBC42", -->
+<!--     "SWAMP" = "darkgrey", -->
+<!--     "WC" = "#419973", -->
+<!--     "SW" = "#25ABE6" -->
+<!--   )) + -->
+<!--   theme_classic() + -->
+<!--   labs(x = " ", y = "Sulfate (mM)", title = "Samples: Sulfate") + -->
+<!--   theme( -->
+<!--     panel.spacing = unit(0.5, "lines"),  -->
+<!--     panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + -->
+<!--   # theme(axis.text.x = element_text(angle = 90, hjust = 0.5))+  -->
+<!--   theme(text = element_text(size = 30))+ -->
+<!--   scale_x_date(breaks = specific_breaks, date_labels = "%Y", expand = expansion(mult = c(0.18, 0.05)))+ -->
+<!--   theme(axis.ticks.x = element_line(linewidth = 1))+ -->
+<!--   theme(axis.ticks.length.x = unit(0.25, "cm")) -->
+
+<!-- # viz_so4_plot_avgs -->
+
+<!-- ggarrange(viz_cl_plot, viz_so4_plot, nrow=2, ncol=1) -->
+
+<!-- ``` -->
+
+
+<!-- ## Summarized data for Depth, Site and Zone  -->
+<!-- ```{r Depth Data, echo=FALSE, warning=FALSE, message = FALSE, fig.width=22, fig.height=10, dpi = 300} -->
+
+<!-- ##Summarize SO4 and Cl by Date, Site, and Zone -->
+<!-- Dionex_avg_depth <- all_dat_dates %>% -->
+<!--   group_by(Month, Year, Site, Zone, Depth_cm) %>% -->
+<!--    dplyr::summarize(mean_SO4 = mean(SO4_mM, na.rm=TRUE),  -->
+<!--             sd_SO4 = sd(SO4_mM, na.rm=TRUE),  -->
+<!--             mean_Cl = mean(Cl_mM, na.rm=TRUE),  -->
+<!--             sd_Cl = sd(Cl_mM, na.rm=TRUE),  -->
+<!--             YearMonth = first(YearMonth)) -->
+
+<!-- # Concatenate with a day (e.g., "01" for the first day) -->
+<!-- Dionex_avg_depth$Date <- paste0(Dionex_avg_depth$YearMonth, "-01") -->
+
+<!-- # Convert to Date object -->
+<!-- Dionex_avg_depth$Date <- as.Date(Dionex_avg_depth$Date) -->
+
+<!-- # Define the specific date breaks you want to display -->
+<!-- specific_breaks <- as.Date(c("2022-01-01", "2023-01-01", "2024-01-01")) -->
+
+<!-- viz_cl_plot_depth <- ggplot(Dionex_avg_depth, aes(x = Date, y = mean_Cl, color = Zone, group = Zone, shape = as.character(Depth_cm))) + -->
+<!--   geom_point(size = 3) +  -->
+<!--   geom_errorbar(aes(ymin = mean_Cl - sd_Cl, ymax = mean_Cl + sd_Cl), width = 0.2) +  -->
+<!--   geom_line() +  -->
+<!--   facet_grid( ~ Site, scales="free_y") + -->
+<!--   scale_color_manual(values = c( -->
+<!--     "UP" = "#20063B", -->
+<!--     "TR" = "#FFBC42", -->
+<!--     "SWAMP" = "darkgrey", -->
+<!--     "WC" = "#419973", -->
+<!--     "SW" = "#25ABE6" -->
+<!--   )) + -->
+<!--   theme_classic() + -->
+<!--   labs(x = " ", y = "Chloride (mM)", title = "Samples: Chloride") + -->
+<!--   theme( -->
+<!--     panel.spacing = unit(0.5, "lines"),  -->
+<!--     panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + -->
+<!--   # theme(axis.text.x = element_text(angle = 90, hjust = 0.5))+  -->
+<!--   theme(text = element_text(size = 30))+ -->
+<!--   scale_x_date(breaks = specific_breaks, date_labels = "%Y", expand = expansion(mult = c(0.18, 0.05))) +  -->
+<!--   labs(fill = "Zone", shape = "Depth (cm)")+ -->
+<!--   theme(axis.ticks.x = element_line(linewidth = 1))+ -->
+<!--   theme(axis.ticks.length.x = unit(0.25, "cm")) -->
+
+<!-- viz_cl_plot_depth -->
+
+
+<!-- viz_so4_plot_depth <- ggplot(Dionex_avg_depth, aes(x = Date, y = mean_SO4, color = Zone, group = Zone, shape = as.character(Depth_cm))) + -->
+<!--   geom_point(size = 3) +  -->
+<!--   geom_errorbar(aes(ymin = mean_SO4 - sd_SO4, ymax = mean_SO4 + sd_SO4), width = 0.2) +  -->
+<!--   geom_line() +  -->
+<!--   facet_grid( ~ Site, scales="free_y") + -->
+<!--   scale_color_manual(values = c( -->
+<!--     "UP" = "#20063B", -->
+<!--     "TR" = "#FFBC42", -->
+<!--     "SWAMP" = "darkgrey", -->
+<!--     "WC" = "#419973", -->
+<!--     "SW" = "#25ABE6" -->
+<!--   )) + -->
+<!--   theme_classic() + -->
+<!--   labs(x = " ", y = "Sulfate (mM)", title = "Samples: Sulfate")  + -->
+<!--   theme( -->
+<!--     panel.spacing = unit(0.5, "lines"),  -->
+<!--     panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + -->
+<!--   # theme(axis.text.x = element_text(angle = 90, hjust = 0.5))+  -->
+<!--   theme(text = element_text(size = 30))+ -->
+<!--   scale_x_date(breaks = specific_breaks, date_labels = "%Y", expand = expansion(mult = c(0.18, 0.05))) +  -->
+<!--   labs(fill = "Zone", shape = "Depth (cm)")+ -->
+<!--   theme(axis.ticks.x = element_line(linewidth = 1))+ -->
+<!--   theme(axis.ticks.length.x = unit(0.25, "cm")) -->
+
+<!-- viz_so4_plot_depth -->
+<!-- # ggarrange(viz_cl_plot, viz_so4_plot, nrow=2, ncol=1) -->
+
+<!-- ``` -->
+
+
+<!-- ## Boxplot summary -->
+<!-- ```{r Overall Boxplot, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300} -->
+
+<!-- all_dat_dates <- all_dat_dates %>%  -->
+<!--     mutate( -->
+<!--     Zone_1 = case_when( -->
+<!--       Zone == "UP" ~ "Upland", -->
+<!--       Zone == "SWAMP" ~ "Swamp", -->
+<!--       Zone == "TR" ~ "Transition", -->
+<!--       Zone == "WC" ~ "Wetland", -->
+<!--       Zone == "SW" ~ "Surface Water", -->
+<!--       TRUE ~ Zone  # keep everything else unchanged -->
+<!--     ) -->
+<!--   ) %>% -->
+<!--   mutate(Zone_1 = factor(Zone_1, levels = c("Upland", "Swamp", "Transition", "Wetland", "Surface Water"))) -->
+
+
+<!-- ##Summarize SO4 and Cl by Date, Site, and Zone -->
+<!-- viz_cl_boxplot <- ggplot(all_dat_dates, aes(x = Zone_1, y = Cl_mM, fill = Zone_1, group = Zone_1)) + -->
+<!--   geom_boxplot() +  -->
+<!--   facet_grid( ~ Site, scales = "free_x") + -->
+<!--   scale_x_discrete(drop = TRUE) + -->
+<!--   scale_fill_manual(values = c( -->
+<!--     "Upland" = "#20063B", -->
+<!--     "Transition" = "#FFBC42", -->
+<!--     "Swamp" = "darkgrey", -->
+<!--     "Wetland" = "#419973", -->
+<!--     "Surface Water" = "#25ABE6" -->
+<!--   ), labels = c("Upland", "Swamp", "Transition", "Wetland", "Surface Water")) + -->
+<!--   theme_classic() + -->
+<!--   labs(x = " ", y = "Chloride (mM)", title = "Synoptic CB Porewater: Chloride") + -->
+<!--   theme( -->
+<!--     panel.spacing = unit(0.5, "lines"),  -->
+<!--     panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + -->
+<!--   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+  -->
+<!--   theme(text = element_text(size = 30))+ -->
+<!--   theme(axis.ticks.x = element_line(linewidth = 1))+ -->
+<!--   theme(axis.ticks.length.x = unit(0.25, "cm"))+  -->
+<!--   #scale_x_discrete(labels = c("Upland", "Swamp", "Transition", "Wetland", "Surface Water"))+  -->
+<!--   theme(legend.position = "none") -->
+
+<!-- viz_cl_boxplot -->
+
+
+<!-- viz_so4_boxplot <- ggplot(all_dat_dates, aes(x = Zone_1, y = SO4_mM, fill = Zone_1, group = Zone_1)) + -->
+<!--   geom_boxplot() + -->
+<!--   facet_grid( ~ Site, scales = "free_x") + -->
+<!--   scale_x_discrete(drop = TRUE) + -->
+<!--   scale_fill_manual(values = c( -->
+<!--     "Upland" = "#20063B", -->
+<!--     "Transition" = "#FFBC42", -->
+<!--     "Swamp" = "darkgrey", -->
+<!--     "Wetland" = "#419973", -->
+<!--     "Surface Water" = "#25ABE6" -->
+<!--   ), labels = c("Upland", "Swamp", "Transition", "Wetland", "Surface Water")) + -->
+<!--   theme_classic() + -->
+<!--   labs(x = " ", y = "Sulfate (mM)", title = "Samples: Sulfate") + -->
+<!--   theme( -->
+<!--     panel.spacing = unit(0.5, "lines"),  -->
+<!--     panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + -->
+<!--   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+  -->
+<!--   theme(text = element_text(size = 30))+ -->
+<!--   theme(axis.ticks.x = element_line(linewidth = 1))+ -->
+<!--   theme(axis.ticks.length.x = unit(0.25, "cm"))+  -->
+<!--   #scale_x_discrete(labels = c("Upland", "Swamp", "Transition", "Wetland", "Surface Water"))+  -->
+<!--   theme(legend.position = "none") -->
+
+<!-- viz_so4_boxplot -->
+
+<!-- # ggarrange(viz_cl_boxplot, viz_so4_boxplot, nrow=2, ncol=1) -->
+
+<!-- # Save as a PNG -->
+<!-- png("COMPASS_SynopticCB_Cl_alldata.png", width = 2000, height = 1200, res = 100)  -->
+<!-- print(viz_cl_boxplot)  # For ggplot objects, use print() -->
+<!-- dev.off()  -->
+
+<!-- # Save as a PNG -->
+<!-- png("COMPASS_SynopticCB_SO4_alldata.png", width = 2000, height = 1200, res = 100)  -->
+<!-- print(viz_so4_boxplot)  # For ggplot objects, use print() -->
+<!-- dev.off()  -->
+
+<!-- ``` -->
+
+<!-- ##Calculate summary metrics -->
+<!-- ```{r Additional summary metrics, include=FALSE, dpi = 300} -->
+<!-- # It would also be great to add to our collation codes a summary chunk that will calculate value ranges, means, and standard deviations (and errors) for each site, zone, depth for each year; also for each site zone, depth overall; and for each site and zone overall so that we have some easy access to metrics. Was just thinking this might be helpful today when re-collating the DIC data. -->
+
+<!-- colnames(all_dat) -->
+
+<!-- ##Metrics for each site, zone, depth for each year -->
+<!-- summary_by_year <- all_dat %>% -->
+<!--   group_by(Year, Site, Zone, Depth_cm) %>% -->
+<!--    reframe( -->
+<!--      min_Cl_mM = min(Cl_mM, na.rm=TRUE), -->
+<!--      max_Cl_mM = max(Cl_mM, na.rm=TRUE),  -->
+<!--      mean_Cl_mM = mean(Cl_mM, na.rm=TRUE),  -->
+<!--      sd_Cl_mM = sd(Cl_mM, na.rm=TRUE),  -->
+
+<!--      min_SO4_mM = min(SO4_mM, na.rm=TRUE), -->
+<!--      max_SO4_mM = max(SO4_mM, na.rm=TRUE),  -->
+<!--      mean_SO4_mM = mean(SO4_mM, na.rm=TRUE),  -->
+<!--      sd_SO4_mM = sd(SO4_mM, na.rm=TRUE)) %>% -->
+<!--   mutate(across(where(is.numeric), round, digits = 4))  -->
+
+<!-- ##Metrics for each site, zone, depth for all years -->
+<!-- summary_all_years <- all_dat %>% -->
+<!--   group_by(Site, Zone, Depth_cm) %>% -->
+<!--    reframe( -->
+<!--      min_Cl_ppm = min(Cl_ppm, na.rm=TRUE), -->
+<!--      max_Cl_ppm = max(Cl_ppm, na.rm=TRUE),  -->
+<!--      mean_Cl_ppm = mean(Cl_ppm, na.rm=TRUE),  -->
+<!--      sd_Cl_ppm = sd(Cl_ppm, na.rm=TRUE),  -->
+
+<!--      min_SO4_ppm = min(SO4_ppm, na.rm=TRUE), -->
+<!--      max_SO4_ppm = max(SO4_ppm, na.rm=TRUE),  -->
+<!--      mean_SO4_ppm = mean(SO4_ppm, na.rm=TRUE),  -->
+<!--      sd_SO4_ppm = sd(SO4_ppm, na.rm=TRUE)) %>% -->
+<!--   mutate(across(where(is.numeric), round, digits = 4))  -->
+
+<!-- ##Metrics for each site and zone for all depths and years -->
+<!-- summary_all_depths_years <- all_dat %>% -->
+<!--   group_by(Site, Zone) %>% -->
+<!--    reframe( -->
+<!--      min_Cl_ppm = min(Cl_ppm, na.rm=TRUE), -->
+<!--      max_Cl_ppm = max(Cl_ppm, na.rm=TRUE),  -->
+<!--      mean_Cl_ppm = mean(Cl_ppm, na.rm=TRUE),  -->
+<!--      sd_Cl_ppm = sd(Cl_ppm, na.rm=TRUE),  -->
+
+<!--      min_SO4_ppm = min(SO4_ppm, na.rm=TRUE), -->
+<!--      max_SO4_ppm = max(SO4_ppm, na.rm=TRUE),  -->
+<!--      mean_SO4_ppm = mean(SO4_ppm, na.rm=TRUE),  -->
+<!--      sd_SO4_ppm = sd(SO4_ppm, na.rm=TRUE)) %>% -->
+<!--   mutate(across(where(is.numeric), round, digits = 4))  -->
+
+<!-- ``` -->
+
+<!-- ## Summary Tables -->
+<!-- ```{r Summary table metrics, echo = FALSE, message = FALSE, dpi = 100} -->
+
+<!-- library(kableExtra) -->
+
+<!-- #Order by Zone from Upland to Surface Water -->
+<!-- summary_all_depths_years$Zone = factor(summary_all_depths_years$Zone, levels = c("UP", "SWAMP", "TR", "WC", "SW")) -->
+<!-- summary_all_depths_years <- summary_all_depths_years[order(summary_all_depths_years$Zone), ] -->
+
+<!-- #Order by Site from SWH, GCW, MSM, GWI order, which is oligohaline to polyhaline -->
+<!-- summary_all_depths_years$Site = factor(summary_all_depths_years$Site, levels = c("SWH", "GCW", "MSM", "GWI")) -->
+<!-- summary_all_depths_years <- summary_all_depths_years[order(summary_all_depths_years$Site), ] -->
+
+<!-- kable( -->
+<!--   summary_all_depths_years[, c("Site", "Zone", "min_Cl_ppm",	"max_Cl_ppm",	"mean_Cl_ppm", "min_SO4_ppm",	"max_SO4_ppm",	"mean_SO4_ppm")],   -->
+<!--   format = "latex", -->
+<!--   booktabs = TRUE, -->
+<!--   caption = "Summary Statistics" -->
+<!-- ) %>% -->
+<!--   kable_styling( -->
+<!--     latex_options = c("hold_position", "striped", "scale_down"), -->
+<!--     font_size = 12 -->
+<!--   ) %>% -->
+<!--   row_spec(0, bold = TRUE) %>%   # header -->
+<!--   column_spec(1, bold = TRUE) -->
+
+
+<!-- ``` -->
+
+<!-- ##Write out summarized data -->
+<!-- ```{r write out summarized data, include=FALSE} -->
+
+<!-- #write out a csv of all the data to the main folder:  -->
+<!-- write.csv(summary_by_year, "COMPASS_SynopticCB_PW_SO4_Cl_Summarized_By_Year.csv") -->
+
+
+<!-- #write out a csv of the metadata associated with the data:  -->
+<!-- write.csv(summary_all_years, "COMPASS_SynopticCB_PW_SO4_Cl_Summarized_Years_Combined.csv") -->
+
+
+<!-- #write out a csv of the metadata associated with the data:  -->
+<!-- write.csv(summary_all_depths_years, "COMPASS_SynopticCB_PW_SO4_Cl_Summarized_Years_and_Depths_Combined.csv") -->
+<!-- ``` -->
+
+
+
