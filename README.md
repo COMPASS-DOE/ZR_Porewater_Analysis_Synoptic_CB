@@ -1,1 +1,1 @@
-Looking at COMPASS Synoptic CB Porewater Data for Zoe Read's GCReW Symposium Poster 2026. 
+COMPASS Synoptic CB Porewater Data Analysis for Zoe Read's GCReW Symposium Poster 2026. 
