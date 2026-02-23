@@ -45,6 +45,8 @@ doc_data <- read.csv(curl("https://raw.githubusercontent.com/COMPASS-DOE/synopti
 data_plotting_so4_cl <- so4_cl_data %>%
   filter(!str_detect(Zone, "SW")) 
 
+head(data_plotting_so4_cl)
+
 #Order by Zone from Upland to Surface Water
 data_plotting_so4_cl$Zone = factor(data_plotting_so4_cl$Zone, levels = c("UP", "SWAMP", "TR", "WC"))
 data_plotting_so4_cl <- data_plotting_so4_cl[order(data_plotting_so4_cl$Zone), ]
@@ -60,13 +62,18 @@ data_plotting_so4_cl <- data_plotting_so4_cl %>%
   mutate(row_num = factor(row_number())) %>%  # create row_num as factor per group
   ungroup()
 
-data_plotting_so4_cl$Date <- as.Date(paste(data_plotting_so4_cl$Year, data_plotting_so4_cl$Month, data_plotting_so4_cl$Day, sep = "-"))
+
+data_plotting_so4_cl$Date <- ifelse(data_plotting_so4_cl$Month < 10, paste0(data_plotting_so4_cl$Year, "0", data_plotting_so4_cl$Month), paste0(data_plotting_so4_cl$Year, data_plotting_so4_cl$Month))
 
 
 #Plot data and change colors based on Zone:
-viz_cl_plot <- ggplot(data_plotting_so4_cl, aes(x = as.character(Year), y = Cl_mM, fill = Zone)) +
+so4_cl_TR <- data_plotting_so4_cl %>%
+  filter(str_detect(Zone, "TR")) %>%
+  filter(str_detect(Depth_cm, "45"))
+
+viz_cl_plot <- ggplot(so4_cl_TR, aes(x = as.character(Date), y = Cl_mM, fill = Zone)) +
   geom_boxplot() +
-  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  facet_wrap( ~ Site, scales="free") +
   scale_fill_manual(values = c(
     "UP" = "#20063B",
     "TR" = "#FFBC42",
@@ -74,18 +81,24 @@ viz_cl_plot <- ggplot(data_plotting_so4_cl, aes(x = as.character(Year), y = Cl_m
     "WC" = "#419973"
   )) +
   theme_classic() +
-  labs(x = " ", y = "Chloride (mM)", title = "Samples: Chloride") +
+  labs(x = " ", y = "Chloride (mM)", title = "Chloride in Transitions Zones at 20 cm") +
   # theme(
   #   panel.spacing = unit(.05, "lines"), 
   #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
-  theme(text = element_text(size = 20))
+  theme(text = element_text(size = 20))  + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
 
-# viz_cl_plot
 
+viz_cl_plot
 
-viz_so4_plot <-  ggplot(data_plotting_so4_cl, aes(x = as.character(Year), y = SO4_mM, fill = Zone)) +
+# Save as a PNG
+png("Chloride in Transitions Zones at 20 cm.png", width = 2000, height = 1200, res = 100) 
+print(viz_cl_plot)  # For ggplot objects, use print()
+dev.off() 
+
+viz_so4_plot <-  ggplot(so4_cl_TR, aes(x = as.character(Date), y = SO4_mM, fill = Zone)) +
   geom_boxplot() +
-  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  facet_wrap( ~ Site, scales="free") +
   scale_fill_manual(values = c(
     "UP" = "#20063B",
     "TR" = "#FFBC42",
@@ -93,22 +106,289 @@ viz_so4_plot <-  ggplot(data_plotting_so4_cl, aes(x = as.character(Year), y = SO
     "WC" = "#419973"
   )) +
   theme_classic() +
-  labs(x = " ", y = "Sulfate (mM)", title = "Samples: SO4") +
+  labs(x = " ", y = "Sulfate (mM)", title = "Chloride in Transitions Zones at 20 cm") +
   # theme(
   #   panel.spacing = unit(.05, "lines"), 
   #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1))+ 
-  theme(text = element_text(size = 20))
+  theme(text = element_text(size = 20)) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
 
-# viz_so4_plot
 
-viz_cl_so4_plot <- ggarrange(viz_cl_plot, viz_so4_plot, nrow=2, ncol=1)
+viz_so4_plot
 
 # Save as a PNG
-png("Cl_SO4_boxplot_2022-2025.png", width = 2000, height = 1200, res = 100) 
-print(viz_cl_so4_plot)  # For ggplot objects, use print()
+png("Sulfate in Transitions Zones at 20 cm.png", width = 2000, height = 1200, res = 100) 
+print(viz_so4_plot)  # For ggplot objects, use print()
 dev.off() 
 
+# viz_cl_so4_plot <- ggarrange(viz_cl_plot, viz_so4_plot, nrow=2, ncol=1)
+# 
+# # Save as a PNG
+# png("Cl_SO4_boxplot_2022-2025.png", width = 2000, height = 1200, res = 100) 
+# print(viz_cl_so4_plot)  # For ggplot objects, use print()
+# dev.off() 
+
+
 ```
+## Barplots of SO4/Cl by Year, Site, and Zone
+```{r Barplots of SO4/Cl, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
+
+data_plotting_doc <- doc_data %>%
+  filter(!str_detect(Zone, "SW")) 
+
+head(data_plotting_doc)
+
+#Order by Zone from Upland to Surface Water
+data_plotting_doc$Zone = factor(data_plotting_doc$Zone, levels = c("UP", "SWAMP", "TR", "WC"))
+data_plotting_doc <- data_plotting_doc[order(data_plotting_doc$Zone), ]
+
+#Order by Site from SWH, GCW, MSM, GWI order, which is oligohaline to polyhaline
+data_plotting_doc$Site = factor(data_plotting_doc$Site, levels = c("SWH", "GCW", "MSM", "GWI"))
+data_plotting_doc <- data_plotting_doc[order(data_plotting_doc$Site), ]
+
+#Plot samples to get a first look at concentrations (sanity check)
+#group the data for plotting
+data_plotting_doc <- data_plotting_doc %>%
+  group_by(Site, Zone) %>%
+  mutate(row_num = factor(row_number())) %>%  # create row_num as factor per group
+  ungroup()
+
+
+data_plotting_doc$Date <- ifelse(data_plotting_doc$Month < 10, paste0(data_plotting_doc$Year, "0", data_plotting_doc$Month), paste0(data_plotting_doc$Year, data_plotting_doc$Month))
+
+
+#Plot data and change colors based on Zone:
+doc_TR <- data_plotting_doc %>%
+  filter(str_detect(Zone, "TR")) %>%
+  filter(str_detect(Depth_cm, "45"))
+
+viz_cl_plot <- ggplot(doc_TR, aes(x = as.character(Date), y = tdn_mgL, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free") +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey", 
+    "WC" = "#419973"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Chloride (mM)", title = "Chloride in Transitions Zones at 20 cm") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+  theme(text = element_text(size = 20))  + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+
+viz_cl_plot
+
+# Save as a PNG
+png("Chloride in Transitions Zones at 20 cm.png", width = 2000, height = 1200, res = 100) 
+print(viz_cl_plot)  # For ggplot objects, use print()
+dev.off() 
+
+viz_so4_plot <-  ggplot(doc_TR, aes(x = as.character(Date), y = SO4_mM, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free") +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey", 
+    "WC" = "#419973"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Sulfate (mM)", title = "Chloride in Transitions Zones at 20 cm") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1))+ 
+  theme(text = element_text(size = 20)) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+
+viz_so4_plot
+
+# Save as a PNG
+png("Sulfate in Transitions Zones at 20 cm.png", width = 2000, height = 1200, res = 100) 
+print(viz_so4_plot)  # For ggplot objects, use print()
+dev.off() 
+
+# viz_cl_so4_plot <- ggarrange(viz_cl_plot, viz_so4_plot, nrow=2, ncol=1)
+# 
+# # Save as a PNG
+# png("Cl_SO4_boxplot_2022-2025.png", width = 2000, height = 1200, res = 100) 
+# print(viz_cl_so4_plot)  # For ggplot objects, use print()
+# dev.off() 
+
+
+```
+
+## Summarized data for Site and Zone 
+```{r Summarize and Visualize Data, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
+
+##Boxplot Summarize SO4 and Cl by Date, Site, and Zone
+viz_cl_boxplot <- ggplot(data_plotting_so4_cl, aes(x = Date,  y = Cl_ppm, fill = Zone)) +
+  geom_boxplot() + 
+  facet_wrap( ~ Site, scales="free_y") +
+  # scale_x_discrete(drop = TRUE) +
+   scale_color_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey",
+    "WC" = "#419973",
+    "SW" = "#25ABE6"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Chloride (ppm)", title = "Porewater: Chloride") +
+  theme(
+    panel.spacing = unit(0.5, "lines"), 
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+ 
+  theme(text = element_text(size = 30))+
+  theme(axis.ticks.x = element_line(linewidth = 1))+
+  theme(axis.ticks.length.x = unit(0.25, "cm"))+ 
+  theme(legend.position = "none")
+
+viz_cl_boxplot
+
+##Summarize SO4 and Cl by Date, Site, and Zone
+Dionex_avg <- all_dat_dates %>%
+  group_by(Month, Year, Site, Zone) %>%
+   dplyr::summarize(mean_SO4 = mean(SO4_mM, na.rm=TRUE), 
+            sd_SO4 = sd(SO4_mM, na.rm=TRUE), 
+            mean_Cl = mean(Cl_mM, na.rm=TRUE), 
+            sd_Cl = sd(Cl_mM, na.rm=TRUE), 
+            YearMonth = first(YearMonth))
+
+# Concatenate with a day (e.g., "01" for the first day)
+Dionex_avg$Date <- paste0(Dionex_avg$YearMonth, "-01")
+
+# Convert to Date object
+Dionex_avg$Date <- as.Date(Dionex_avg$Date)
+
+# Define the specific date breaks you want to display
+specific_breaks <- as.Date(c("2022-01-01", "2023-01-01", "2024-01-01", "2025-01-01"))
+
+viz_cl_plot_avgs <- ggplot(Dionex_avg, aes(x = Date, y = mean_Cl, color = Zone, group = Zone)) +
+  geom_point(size = 3) + 
+  geom_errorbar(aes(ymin = mean_Cl - sd_Cl, ymax = mean_Cl + sd_Cl), width = 0.2) + 
+  geom_line() + 
+  facet_grid( ~ Site, scales="free_y") +
+  scale_color_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey",
+    "WC" = "#419973",
+    "SW" = "#25ABE6"
+  )) +
+  theme_classic() +
+  labs(x = "Date", y = "Chloride (mM)", title = "Samples: Chloride") +
+  theme(
+    panel.spacing = unit(0.5, "lines"), 
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) +
+  # theme(axis.text.x = element_text(angle = 90, hjust = 0.5))+ 
+  theme(text = element_text(size = 30))+
+  scale_x_date(breaks = specific_breaks, date_labels = "%Y", expand = expansion(mult = c(0.18, 0.05)))+
+  theme(axis.ticks.x = element_line(linewidth = 1))+
+  theme(axis.ticks.length.x = unit(0.25, "cm"))
+
+# viz_cl_plot_avgs
+
+
+viz_so4_plot_avgs <- ggplot(Dionex_avg, aes(x = Date, y = mean_SO4, color = Zone, group = Zone)) +
+  geom_point(size = 3) + 
+  geom_errorbar(aes(ymin = mean_SO4 - sd_SO4, ymax = mean_SO4 + sd_SO4), width = 0.2) + 
+  geom_line() + 
+  facet_grid( ~ Site, scales="free_y") +
+  scale_color_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey",
+    "WC" = "#419973",
+    "SW" = "#25ABE6"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Sulfate (mM)", title = "Samples: Sulfate") +
+  theme(
+    panel.spacing = unit(0.5, "lines"), 
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) +
+  # theme(axis.text.x = element_text(angle = 90, hjust = 0.5))+ 
+  theme(text = element_text(size = 30))+
+  scale_x_date(breaks = specific_breaks, date_labels = "%Y", expand = expansion(mult = c(0.18, 0.05)))+
+  theme(axis.ticks.x = element_line(linewidth = 1))+
+  theme(axis.ticks.length.x = unit(0.25, "cm"))
+
+# viz_so4_plot_avgs
+
+ggarrange(viz_cl_plot, viz_so4_plot, nrow=2, ncol=1)
+
+```
+
+##Modelling
+```{r}
+##ANOVA comparison of sulfate across years within each zone
+data_plotting_so4_cl$Year <- as.factor(data_plotting_so4_cl$Year)
+
+results <- data_plotting_so4_cl %>%
+  group_by(Site, Zone) %>%
+  do(tidy(aov(SO4_mM ~ Year, data = .)))
+
+##Separate ANOVA by Site and Zone
+so4_cl_GCW_TR <- so4_cl_data %>%
+  filter(str_detect(Site, "GCW")) %>%
+  filter(str_detect(Zone, "TR")) 
+
+
+library(lme4)
+library(lmerTest)
+
+so4_cl_data$SampleUnit <- interaction(
+                             so4_cl_data$Site,
+                             so4_cl_data$Zone,
+                             so4_cl_data$Depth_cm,
+                             so4_cl_data$Replicate)
+
+model <- lmer(SO4_mM ~ Year * Month + (1 | SampleUnit), data = so4_cl_data)
+
+anova(model)
+
+# Type III Analysis of Variance Table with Satterthwaite's method
+#            Sum Sq Mean Sq NumDF  DenDF F value  Pr(>F)  
+# Year         0.49    0.49     1 2146.4  0.0132 0.90853  
+# Month      184.12  184.12     1 2157.5  4.9645 0.02598 *
+# Year:Month 181.44  181.44     1 2157.5  4.8924 0.02708 *
+
+
+# The ANOVA table will show:
+# Year → overall annual differences
+# Month → seasonal differences
+# Year:Month → does seasonality differ among years?
+# That interaction is often ecologically very important.
+
+
+plot(model)
+qqnorm(residuals(model))
+qqline(residuals(model))
+
+
+so4_cl_data$log_SO4 <- log(so4_cl_data$SO4_mM + 0.01)
+
+model <- lmer(log_SO4 ~ Year * Month + (1 | SampleUnit), data = so4_cl_data)
+
+anova(model)
+
+plot(model)
+qqnorm(residuals(model))
+qqline(residuals(model))
+
+sample_sizes <- so4_cl_data %>%
+  group_by(Site, Zone, Depth_cm, Replicate) %>%
+  summarise(n = n(), .groups = "drop")
+
+sample_sizes
+
+table(sample_sizes$n)
+```
+
 ## Barplots of H2S by Year, Site, and Zone
 ```{r Barplots of H2S, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
 
@@ -311,14 +591,13 @@ dev.off()
 ```{r Barplots of SO4/Cl by Depth, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
 
 #Plot data and change colors based on Zone:
-viz_cl_plot_depth <- ggplot(data_plotting_so4_cl, aes(x = as.character(Depth_cm), y = Cl_mM, fill = Zone)) +
+viz_cl_plot_depth <- ggplot(data_plotting_so4_cl, aes(x = Zone, y = Cl_mM, fill = as.character(Depth_cm))) +
   geom_boxplot() +
-  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  facet_wrap( ~ Site + Year, scales="free") +
   scale_fill_manual(values = c(
-    "UP" = "#20063B",
-    "TR" = "#FFBC42",
-    "SWAMP" = "darkgrey", 
-    "WC" = "#419973"
+    "10" = "lightblue",
+    "20" = "blue",
+    "45" = "darkblue"
   )) +
   theme_classic() +
   labs(x = "Sampling Depth (cm)", y = "Chloride (mM)", title = "Samples: Chloride") +
@@ -330,14 +609,13 @@ viz_cl_plot_depth <- ggplot(data_plotting_so4_cl, aes(x = as.character(Depth_cm)
 viz_cl_plot_depth
 
 
-viz_so4_plot_depth <-  ggplot(data_plotting_so4_cl, aes(x = as.character(Depth_cm), y = SO4_mM, fill = Zone)) +
+viz_so4_plot_depth <-  ggplot(data_plotting_so4_cl, aes(x = Zone, y = SO4_mM, fill = as.character(Depth_cm))) +
   geom_boxplot() +
-  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  facet_wrap( ~ Site + Year, scales="free") +
   scale_fill_manual(values = c(
-    "UP" = "#20063B",
-    "TR" = "#FFBC42",
-    "SWAMP" = "darkgrey", 
-    "WC" = "#419973"
+    "10" = "lightblue",
+    "20" = "blue",
+    "45" = "darkblue"
   )) +
   theme_classic() +
   labs(x = "Sampling Depth (cm)", y = "Sulfate (mM)", title = "Samples: SO4") +
@@ -360,15 +638,13 @@ dev.off()
 ```{r Barplots of H2S by Depth, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
 
 #Plot data and change colors based on Zone:
-viz_H2S_plot_depth <- ggplot(data_plotting_h2s, aes(x = as.character(Depth_cm), y = H2S_mean_uM, fill = Zone)) +
+viz_H2S_plot_depth <- ggplot(data_plotting_h2s, aes(x = Zone, y = H2S_mean_uM, fill = as.character(Depth_cm))) +
   geom_boxplot() +
-  facet_wrap( ~ Site, scales="free", nrow = 1) +
+  facet_wrap( ~ Site + Year, scales="free") +
   scale_fill_manual(values = c(
-    "UP" = "#20063B",
-    "TR" = "#FFBC42",
-    "SWAMP" = "darkgrey",
-    "WC" = "#419973"
-  )) +
+  "10" = "lightblue",
+    "20" = "blue",
+    "45" = "darkblue" )) +
   theme_classic() +
   labs(x = "Sampling Depth (cm)", y = "Sulfide (uM)", title = "Samples: Sulfide") +
   # theme(
@@ -389,15 +665,13 @@ dev.off()
 ```{r Barplots of DOC by Depth, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
 
 #Plot data and change colors based on Zone:
-viz_NPOC_plot_depth <- ggplot(data_plotting_doc, aes(x = as.character(Depth_cm), y = npoc_mgL, fill = Zone)) +
+viz_NPOC_plot_depth <- ggplot(data_plotting_doc, aes(x = Zone, y = npoc_mgL, fill = as.character(Depth_cm))) +
   geom_boxplot() +
   facet_wrap( ~ Site, scales="free", nrow = 1) +
   scale_fill_manual(values = c(
-    "UP" = "#20063B",
-    "TR" = "#FFBC42",
-    "SWAMP" = "darkgrey",
-    "WC" = "#419973",
-    "SW" = "#25ABE6"
+    "10" = "lightblue",
+    "20" = "blue",
+    "45" = "darkblue"
   )) +
   theme_classic() +
   labs(x = "Sampling Depth (cm)", y = "NPOC (mg/L)", title = "Samples: NPOC") +
@@ -408,15 +682,13 @@ viz_NPOC_plot_depth <- ggplot(data_plotting_doc, aes(x = as.character(Depth_cm),
 
  viz_NPOC_plot_depth
  
- viz_TDN_plot_depth <- ggplot(data_plotting_doc, aes(x = as.character(Depth_cm), y = tdn_mgL, fill = Zone)) +
+ viz_TDN_plot_depth <- ggplot(data_plotting_doc, aes(x = Zone, y = tdn_mgL, fill = as.character(Depth_cm))) +
   geom_boxplot() +
   facet_wrap( ~ Site, scales="free", nrow = 1) +
   scale_fill_manual(values = c(
-    "UP" = "#20063B",
-    "TR" = "#FFBC42",
-    "SWAMP" = "darkgrey",
-    "WC" = "#419973",
-    "SW" = "#25ABE6"
+   "10" = "lightblue",
+    "20" = "blue",
+    "45" = "darkblue"
   )) +
   theme_classic() +
   labs(x = "Sampling Depth (cm)", y = "TDN (mg/L)", title = "Samples: TDN") +
