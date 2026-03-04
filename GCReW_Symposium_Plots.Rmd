@@ -42,21 +42,21 @@ doc_data <- read.csv(curl("https://raw.githubusercontent.com/COMPASS-DOE/synopti
 ##Read in water level data
 ```{r}
 
-
-
-##Read in raw temperature data
-files <- dir(path = "Raw Data/", pattern = "_wx-tempavg15.*\\.csv$", full.names = TRUE)
-results <- lapply(files, read.csv) 
-dat <- do.call(rbind, results)
-rownames(dat) <- NULL
-dat <- dat %>%
-  select(TIMESTAMP, research_name, Value, F_OOB, F_OOS, Plot, Site)
-dat1 <- dat %>% filter((F_OOB != 1 & F_OOS != 1))
-head(dat1)
-
-#convert to wide format
-temps <- pivot_wider(dat1, id_cols = c("TIMESTAMP", "Plot", "Site"), names_from = research_name, values_from = Value )
-head(temps)
+# 
+# 
+# ##Read in raw temperature data
+# files <- dir(path = "Raw Data/", pattern = "_wx-tempavg15.*\\.csv$", full.names = TRUE)
+# results <- lapply(files, read.csv) 
+# dat <- do.call(rbind, results)
+# rownames(dat) <- NULL
+# dat <- dat %>%
+#   select(TIMESTAMP, research_name, Value, F_OOB, F_OOS, Plot, Site)
+# dat1 <- dat %>% filter((F_OOB != 1 & F_OOS != 1))
+# head(dat1)
+# 
+# #convert to wide format
+# temps <- pivot_wider(dat1, id_cols = c("TIMESTAMP", "Plot", "Site"), names_from = research_name, values_from = Value )
+# head(temps)
 ```
 
 ## Barplots of SO4/Cl by Year, Site, and Zone
@@ -148,6 +148,166 @@ dev.off()
 # png("Cl_SO4_boxplot_2022-2025.png", width = 2000, height = 1200, res = 100) 
 # print(viz_cl_so4_plot)  # For ggplot objects, use print()
 # dev.off() 
+
+
+```
+
+##Calculate Sulfate Depletion
+```{r Calculate sulfate depletion}
+
+##RSW is the constant molar ratio of Cl- to SO42- in surface seawater (RSW = 19.33; Bianchi 2006)
+#Positive values of SulfateDep represent a net depletion of SO42-compared to the value predicted by the Cl:SO42- ratio in surface seawater, presumably due to sulfate reduction (Weston et al. 2006a). In a few cases, negative values of SulfateDep indicate an increase in SO42- compared to the theoretical amount
+so4_cl_data <- so4_cl_data %>%
+  mutate(so4_dep = (Cl_mM/19.33)-SO4_mM)
+
+```
+
+
+## Barplots of SO4 Depletion by Year, Site, and Zone
+```{r Barplots of SO4/Cl, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
+
+data_plotting_so4_cl <- so4_cl_data %>%
+  filter(Zone != "SW")
+
+head(data_plotting_so4_cl)
+
+#Order by Zone from Upland to Surface Water
+data_plotting_so4_cl$Zone = factor(data_plotting_so4_cl$Zone, levels = c("UP", "SWAMP", "TR", "WC"))
+data_plotting_so4_cl <- data_plotting_so4_cl[order(data_plotting_so4_cl$Zone), ]
+
+#Order by Site from SWH, GCW, MSM, GWI order, which is oligohaline to polyhaline
+data_plotting_so4_cl$Site = factor(data_plotting_so4_cl$Site, levels = c("SWH", "GCW", "MSM", "GWI"))
+data_plotting_so4_cl <- data_plotting_so4_cl[order(data_plotting_so4_cl$Site), ]
+
+#Plot samples to get a first look at concentrations (sanity check)
+#group the data for plotting
+data_plotting_so4_cl <- data_plotting_so4_cl %>%
+  group_by(Site, Zone) %>%
+  mutate(row_num = factor(row_number())) %>%  # create row_num as factor per group
+  ungroup()
+
+
+data_plotting_so4_cl$Date <- ifelse(data_plotting_so4_cl$Month < 10, paste0(data_plotting_so4_cl$Year, "0", data_plotting_so4_cl$Month), paste0(data_plotting_so4_cl$Year, data_plotting_so4_cl$Month))
+
+#Plot data and change colors based on Depth:
+so4_cl_TR <- data_plotting_so4_cl %>%
+  filter(str_detect(Zone, "TR")) 
+# %>%
+#   filter(str_detect(Depth_cm, "45"))
+
+viz_dep_plot_tr <- ggplot(so4_cl_TR, aes(x = as.character(Date), y = so4_dep, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free") +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey", 
+    "WC" = "#419973"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Sulfate Depletion", title = "Sulfate Depletion in Transitions Zones") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+  theme(text = element_text(size = 20))  + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+viz_dep_plot_tr
+
+# Save as a PNG
+png("SO4_dep_boxplot_2022-2025.png", width = 2000, height = 1200, res = 100)
+print(viz_dep_plot_tr)  # For ggplot objects, use print()
+dev.off()
+
+
+#Plot data and change colors based on Zone:
+
+#Compute ANOVA/Pairwise Stats per Facet
+##Significance asterisks
+library(rstatix)
+
+stats <- data_plotting_so4_cl %>%
+  group_by(Site) %>%
+  wilcox_test(so4_dep ~ Zone) %>% # or anova_test()
+  add_significance() %>%
+  add_xy_position(x = "Zone") # Automate p-value positions
+
+viz_dep_plot <- ggplot(data_plotting_so4_cl, aes(x = Zone, y = so4_dep, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site, scales="free") +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey", 
+    "WC" = "#419973"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Sulfate Depletion", title = "Sulfate Depletion in Transitions Zones at 20 cm") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+  theme(text = element_text(size = 20)) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+ 
+  stat_pvalue_manual(stats, label = "p.adj.signif", tip.length = 0.01, inherit.aes = FALSE)
+
+viz_dep_plot
+
+##Significance letters on averaged data
+df_summ <- data_plotting_so4_cl %>%
+  group_by(Site, Zone) %>%
+  summarise(
+    Mean = mean(so4_dep),
+    SD = sd(so4_dep),
+    .groups = 'drop'
+  ) %>%
+  # Merge the letters back into the summarized data
+  left_join(results, by = c("Site", "Zone"))
+
+
+viz_dep_plot_avg <- ggplot(df_summ, aes(x = Zone, y = Mean, , color = Zone, group = Zone)) +
+  geom_point(size = 3) + 
+  geom_errorbar(aes(ymin = Mean - SD, ymax = Mean + SD), width = 0.2) + 
+  facet_wrap( ~ Site, scales="free") + 
+  scale_color_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey", 
+    "WC" = "#419973"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Sulfate Depletion", title = "Sulfate Depletion in Transitions Zones at 20 cm") +
+  theme(text = element_text(size = 20)) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + 
+  geom_text(aes(label = Letters, y = Mean + SD + 0.5), 
+            position = position_dodge(0.9), vjust = 0) 
+
+viz_dep_plot_avg
+
+
+
+##Sulfate depletion averages through time
+df_summ_date <- data_plotting_so4_cl %>%
+  group_by(Month, Year, Site, Zone) %>%
+   dplyr::summarize(mean_SO4_dep = mean(so4_dep, na.rm=TRUE), 
+            sd_SO4_dep = sd(so4_dep, na.rm=TRUE), 
+            Date = first(Date))
+
+viz_dep_plot_dates <- ggplot(df_summ_date, aes(x = Date, y = mean_SO4_dep, color = Zone, group = Zone)) +
+  geom_point(size = 3) + 
+  geom_errorbar(aes(ymin = mean_SO4_dep - sd_SO4_dep, ymax = mean_SO4_dep + sd_SO4_dep), width = 0.2) + 
+  facet_wrap( ~ Site, scales="free") + 
+  scale_color_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey", 
+    "WC" = "#419973"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Sulfate Depletion", title = "Sulfate Depletion in Transitions Zones at 20 cm") +
+  theme(text = element_text(size = 20)) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) 
+
+viz_dep_plot_dates
 
 
 ```
