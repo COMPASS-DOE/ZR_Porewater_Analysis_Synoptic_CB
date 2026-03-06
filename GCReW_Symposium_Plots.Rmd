@@ -250,7 +250,7 @@ data_plotting_so4_cl <- data_plotting_so4_cl %>%
 #Plot data and change colors based on Zone:
 so4_cl_TR <- data_plotting_so4_cl %>%
   filter(str_detect(Zone, "TR")) %>%
-  filter(str_detect(Depth_cm, "45"))
+  filter(str_detect(Depth_cm, "10"))
 
 viz_cl_plot <- ggplot(so4_cl_TR, aes(x = as.character(Date), y = Cl_mM, fill = Zone)) +
   geom_boxplot() +
@@ -287,7 +287,7 @@ viz_so4_plot <-  ggplot(so4_cl_TR, aes(x = as.character(Date), y = SO4_mM, fill 
     "WC" = "#419973"
   )) +
   theme_classic() +
-  labs(x = " ", y = "Sulfate (mM)", title = "Chloride in Transitions Zones at 20 cm") +
+  labs(x = " ", y = "Sulfate (mM)", title = "Sulfate in Transitions Zones at 20 cm") +
   # theme(
   #   panel.spacing = unit(.05, "lines"), 
   #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1))+ 
@@ -351,9 +351,8 @@ data_plotting_so4_cl$Date <- ifelse(data_plotting_so4_cl$Month < 10, paste0(data
 
 #Plot data and change colors based on Depth:
 so4_cl_TR <- data_plotting_so4_cl %>%
-  filter(str_detect(Zone, "TR")) 
-# %>%
-#   filter(str_detect(Depth_cm, "45"))
+  filter(str_detect(Zone, "TR")) %>%
+  filter(str_detect(Depth_cm, "10"))
 
 viz_dep_plot_tr <- ggplot(so4_cl_TR, aes(x = as.character(Date), y = so4_dep, fill = Zone)) +
   geom_boxplot() +
@@ -365,7 +364,7 @@ viz_dep_plot_tr <- ggplot(so4_cl_TR, aes(x = as.character(Date), y = so4_dep, fi
     "WC" = "#419973"
   )) +
   theme_classic() +
-  labs(x = " ", y = "Sulfate Depletion", title = "Sulfate Depletion in Transitions Zones") +
+  labs(x = " ", y = "Sulfate Depletion", title = "Sulfate Depletion in Transition Zones at 10 cm") +
   # theme(
   #   panel.spacing = unit(.05, "lines"), 
   #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
@@ -375,7 +374,7 @@ viz_dep_plot_tr <- ggplot(so4_cl_TR, aes(x = as.character(Date), y = so4_dep, fi
 viz_dep_plot_tr
 
 # Save as a PNG
-png("SO4_dep_boxplot_2022-2025.png", width = 2000, height = 1200, res = 100)
+png("SO4_dep_boxplot_2022-2025_10cm.png", width = 2000, height = 1200, res = 100)
 print(viz_dep_plot_tr)  # For ggplot objects, use print()
 dev.off()
 
@@ -387,6 +386,7 @@ dev.off()
 library(rstatix)
 
 stats <- data_plotting_so4_cl %>%
+  filter(str_detect(Depth_cm, "10")) %>%
   group_by(Site) %>%
   wilcox_test(so4_dep ~ Zone) %>% # or anova_test()
   add_significance() %>%
@@ -402,46 +402,45 @@ viz_dep_plot <- ggplot(data_plotting_so4_cl, aes(x = Zone, y = so4_dep, fill = Z
     "WC" = "#419973"
   )) +
   theme_classic() +
-  labs(x = " ", y = "Sulfate Depletion", title = "Sulfate Depletion in Transitions Zones at 20 cm") +
+  labs(x = " ", y = "Sulfate Depletion at 10 cm", title = "") +
   # theme(
   #   panel.spacing = unit(.05, "lines"), 
   #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
   theme(text = element_text(size = 20)) + 
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+ 
-  stat_pvalue_manual(stats, label = "p.adj.signif", tip.length = 0.01, inherit.aes = FALSE)
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) 
+  # + stat_pvalue_manual(stats, label = "p.adj.signif", tip.length = 0.01, inherit.aes = FALSE)
 
 viz_dep_plot
 
-##Significance letters on averaged data
+#Significance letters on averaged data
 # df_summ <- data_plotting_so4_cl %>%
+#   filter(str_detect(Depth_cm, "10")) %>%
 #   group_by(Site, Zone) %>%
 #   summarise(
 #     Mean = mean(so4_dep),
 #     SD = sd(so4_dep),
 #     .groups = 'drop'
-#   ) 
-# 
-# # %>%
-# #   # Merge the letters back into the summarized data
-# #   left_join(stats, by = c("Site", "Zone"))
-# 
+#   ) %>%
+#   # Merge the letters back into the summarized data
+#   left_join(stats, by = c("Site", "Zone"))
+
 # 
 # viz_dep_plot_avg <- ggplot(df_summ, aes(x = Zone, y = Mean, , color = Zone, group = Zone)) +
-#   geom_point(size = 3) + 
-#   geom_errorbar(aes(ymin = Mean - SD, ymax = Mean + SD), width = 0.2) + 
-#   facet_wrap( ~ Site, scales="free") + 
+#   geom_point(size = 3) +
+#   geom_errorbar(aes(ymin = Mean - SD, ymax = Mean + SD), width = 0.2) +
+#   facet_wrap( ~ Site, scales="free") +
 #   scale_color_manual(values = c(
 #     "UP" = "#20063B",
 #     "TR" = "#FFBC42",
-#     "SWAMP" = "darkgrey", 
+#     "SWAMP" = "darkgrey",
 #     "WC" = "#419973"
 #   )) +
 #   theme_classic() +
 #   labs(x = " ", y = "Sulfate Depletion", title = "Sulfate Depletion in Transitions Zones at 20 cm") +
-#   theme(text = element_text(size = 20)) + 
-#   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + 
-#   geom_text(aes(label = Letters, y = Mean + SD + 0.5), 
-#             position = position_dodge(0.9), vjust = 0) 
+#   theme(text = element_text(size = 20)) +
+#   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+#   geom_text(aes(label = Letters, y = Mean + SD + 0.5),
+#             position = position_dodge(0.9), vjust = 0)
 # 
 # viz_dep_plot_avg
 
@@ -485,6 +484,8 @@ data_plotting_so4_cl$Date_full <- ifelse(data_plotting_so4_cl$Day < 10, paste0(d
 
 data_plotting_so4_cl$Date_full <- as.Date(data_plotting_so4_cl$Date_full)
 
+so4_cl_TR <- data_plotting_so4_cl %>% 
+  filter(Zone == "TR")
 
 #Plot Cl through time, colored by Zone
 viz_cl_plot <- ggplot(data_plotting_so4_cl, aes(x = Date_full, y = Cl_mM, color = Zone)) +
@@ -516,7 +517,7 @@ dev.off()
 
 
 #Plot Cl through time, colored by Zone
-viz_so4_plot <- ggplot(data_plotting_so4_cl, aes(x = Date_full, y = SO4_mM, color = Zone)) +
+viz_so4_plot <- ggplot(so4_cl_TR, aes(x = Date_full, y = SO4_mM, color = Zone)) +
   geom_point() +
   # geom_smooth(se = FALSE) + 
   facet_wrap( ~ Site, scales="free") +
@@ -537,7 +538,7 @@ viz_so4_plot <- ggplot(data_plotting_so4_cl, aes(x = Date_full, y = SO4_mM, colo
 viz_so4_plot
 
 # Save as a PNG
-png("Sulfate through Time.png", width = 2000, height = 1200, res = 150)
+png("Sulfate through Time TR.png", width = 2000, height = 1200, res = 150)
 print(viz_so4_plot)  # For ggplot objects, use print()
 dev.off()
 
@@ -1049,7 +1050,64 @@ dev.off()
 
 ```
 
-## Barplots of Sulfate Depletion by Depth
+## Scatterplot of Sulfate Depletion by Depth
+```{r Scatterplot of SO4 Depletion by Depth, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
+
+##Sulfate depletion averages through time
+df_summ_date <- data_plotting_so4_cl %>%
+  filter(Zone == "TR") %>% 
+  group_by(Depth_cm, Site, Zone) %>%
+   dplyr::summarize(mean_SO4_dep = mean(so4_dep, na.rm=TRUE), 
+            sd_SO4_dep = sd(so4_dep, na.rm=TRUE), 
+            Date = first(Date))
+
+viz_dep_plot_depths <- ggplot(df_summ_date, aes(x = Depth_cm, y = mean_SO4_dep, color = Zone, group = Zone)) +
+  geom_point(size = 3) + 
+  geom_errorbar(aes(ymin = mean_SO4_dep - sd_SO4_dep, ymax = mean_SO4_dep + sd_SO4_dep), width = 0.2) + 
+  facet_wrap( ~ Site, scales="free") + 
+  scale_color_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey", 
+    "WC" = "#419973"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Sulfate Depletion", title = "Sulfate Depletion in Transitions Zones at 20 cm") +
+  theme(text = element_text(size = 20)) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) 
+
+viz_dep_plot_depths
+
+#Plot data and change colors based on Zone:
+viz_so4_dep_depth_scatter <-  ggplot(so4_data_TR, aes(x = Depth_cm, y = so4_dep)) +
+  geom_point(aes(color = Zone), size = 3) +
+  stat_poly_eq(use_label(c("R2", "P")), size = 6) + 
+  stat_poly_line(formula = y ~ x, color = "black")+   facet_wrap( ~ Site, scales="free", nrow = 1) +
+  scale_color_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey",
+    "WC" = "#419973",
+    "SW" = "#25ABE6"
+  )) +
+  theme_classic() +
+  labs(x = "Sampling Depth (cm)", y = "Sulfate Depletion", title = "") +
+  # theme(
+  #   panel.spacing = unit(.05, "lines"), 
+  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1))+ 
+  theme(text = element_text(size = 30))+ 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+viz_so4_dep_depth_scatter
+
+# Save as a PNG
+png("SO4_dep_by_depth.png", width = 2000, height = 1200, res = 100) 
+print(viz_so4_dep_plot_depth)  # For ggplot objects, use print()
+dev.off() 
+
+```
+
+## Scatterplot of Sulfate Depletion by Depth
 ```{r Barplots of SO4 Depletion by Depth, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
 
 #Plot data and change colors based on Zone:
@@ -1066,7 +1124,8 @@ viz_so4_dep_plot_depth <-  ggplot(data_plotting_so4_cl, aes(x = Zone, y = so4_de
   # theme(
   #   panel.spacing = unit(.05, "lines"), 
   #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1))+ 
-  theme(text = element_text(size = 30))
+  theme(text = element_text(size = 30))+ 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
 
 viz_so4_dep_plot_depth
 
