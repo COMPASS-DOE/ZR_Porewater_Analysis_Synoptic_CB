@@ -1167,13 +1167,18 @@ viz_so4_plot_depth <-  ggplot(data_plotting_so4_cl, aes(x = Zone, y = SO4_mM, fi
     "45" = "darkblue"
   )) +
   theme_classic() +
-  labs(x = "Sampling Depth (cm)", y = "Sulfate (mM)", title = "Samples: SO4") +
+  labs(x = "Sampling Depth (cm)", y = "Sulfate (mM)", title = "Sulfate by Depth") +
   # theme(
   #   panel.spacing = unit(.05, "lines"), 
   #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1))+ 
   theme(text = element_text(size = 30))
 
 viz_so4_plot_depth
+
+# Save as a PNG
+png("SO4_by_depth.png", width = 2000, height = 1000, res = 100) 
+print(viz_so4_plot_depth)  # For ggplot objects, use print()
+dev.off() 
 
 viz_cl_so4_plot_depth <- ggarrange(viz_cl_plot_depth, viz_so4_plot_depth, nrow=2, ncol=1)
 
