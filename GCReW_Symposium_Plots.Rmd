@@ -1276,35 +1276,35 @@ stats <- data_plotting_so4_cl %>%
   add_significance() %>%
   add_xy_position(x = "Zone") # Automate p-value positions
 
-viz_so4_plot_depth <-  ggplot(data_plotting_so4_cl, aes(x = Depth_cm, y = SO4_mM, fill = Zone_1)) +
-  geom_boxplot() +
-  facet_wrap( ~ Site, scales="free", nrow = 1) +
-  scale_fill_manual(values = c(
-    "Upland" = "#20063B",
-    "Transition" = "#FFBC42",
-    "Swamp" = "darkgrey",
-    "Wetland" = "#419973",
-    "Surface Water" = "#25ABE6"
-  )) +
-  theme_classic() +
-  labs(x = "Sampling Depth (cm)", y = "Sulfate (mM)", title = "Sulfate by Depth") +
-  theme(text = element_text(size = 30)) +
-  labs(fill = "Depth") +
-  coord_flip()
-
-viz_so4_plot_depth
+# viz_so4_plot_depth <-  ggplot(data_plotting_so4_cl, aes(x = Depth_cm, y = SO4_mM, fill = Zone_1)) +
+#   geom_boxplot() +
+#   facet_wrap( ~ Site, scales="free", nrow = 1) +
+#   scale_fill_manual(values = c(
+#     "Upland" = "#20063B",
+#     "Transition" = "#FFBC42",
+#     "Swamp" = "darkgrey",
+#     "Wetland" = "#419973",
+#     "Surface Water" = "#25ABE6"
+#   )) +
+#   theme_classic() +
+#   labs(x = "Sampling Depth (cm)", y = "Sulfate (mM)", title = "Sulfate by Depth") +
+#   theme(text = element_text(size = 30)) +
+#   labs(fill = "Depth") +
+#   coord_flip()
+# 
+# viz_so4_plot_depth
 
 # Save as a PNG
-png("SO4_by_depth.png", width = 2000, height = 1000, res = 100) 
+png("SO4_by_depth_avgs.png", width = 2000, height = 1000, res = 100) 
 print(viz_so4_plot_depth)  # For ggplot objects, use print()
 dev.off() 
 
-viz_cl_so4_plot_depth <- ggarrange(viz_cl_plot_depth, viz_so4_plot_depth, nrow=2, ncol=1)
+# viz_cl_so4_plot_depth <- ggarrange(viz_cl_plot_depth, viz_so4_plot_depth, nrow=2, ncol=1)
 
-# Save as a PNG
-png("Cl_SO4_by_depth.png", width = 2000, height = 1200, res = 100) 
-print(viz_cl_so4_plot_depth)  # For ggplot objects, use print()
-dev.off() 
+# # Save as a PNG
+# png("Cl_SO4_by_depth.png", width = 2000, height = 1200, res = 100) 
+# print(viz_cl_so4_plot_depth)  # For ggplot objects, use print()
+# dev.off() 
 
 ```
 ## Barplots of H2S by Depth
