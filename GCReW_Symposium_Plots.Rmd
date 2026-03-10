@@ -24,6 +24,7 @@ library(curl)
 library(ggpmisc)
 library(arrow)
 library(lubridate)
+library(rstatix)
 
 ```
 
@@ -40,6 +41,76 @@ h2s_data <- read.csv(curl("https://raw.githubusercontent.com/COMPASS-DOE/synopti
 doc_data <- read.csv(curl("https://raw.githubusercontent.com/COMPASS-DOE/synoptic-discrete-data/refs/heads/main/Porewater/DOC/Synoptic-CB/COMPASS_SynopticCB_PW_DOC_AllData.csv"))
 
 ```
+
+
+##Plot All SO4 data
+```{r}
+data_plotting_so4_cl <- so4_cl_data 
+
+head(data_plotting_so4_cl)
+
+data_plotting_so4_cl <- data_plotting_so4_cl %>% 
+    mutate(
+    Zone_1 = case_when(
+      Zone == "UP" ~ "Upland",
+      Zone == "SWAMP" ~ "Swamp",
+      Zone == "TR" ~ "Transition",
+      Zone == "WC" ~ "Wetland",
+      Zone == "SW" ~ "Surface Water",
+      TRUE ~ Zone  # keep everything else unchanged
+    )
+  ) %>%
+  mutate(Zone_1 = factor(Zone_1, levels = c("Upland", "Swamp", "Transition", "Wetland", "Surface Water")))
+
+data_plotting_so4_cl <- data_plotting_so4_cl %>% 
+    mutate(
+    Site_1 = case_when(
+      Site == "SWH" ~ "Sweethall",
+      Site == "GCW" ~ "GCReW",
+      Site == "MSM" ~ "Moneystump",
+      Site == "GWI" ~ "Goodwin",
+      TRUE ~ Site  # keep everything else unchanged
+    )
+  ) %>%
+  mutate(Site_1 = factor(Site_1, levels = c("Sweethall", "GCReW", "Moneystump", "Goodwin")))
+
+
+#Plot samples to get a first look at concentrations (sanity check)
+#group the data for plotting
+data_plotting_so4_cl <- data_plotting_so4_cl %>%
+  group_by(Site_1, Zone_1) %>%
+  mutate(row_num = factor(row_number())) %>%  # create row_num as factor per group
+  ungroup()
+
+
+viz_so4_plot <-  ggplot(data_plotting_so4_cl, aes(x = as.character(Year), y = SO4_mM, fill = Zone_1)) +
+  geom_bar(stat = "identity", position = position_dodge2(preserve = "total")) +
+  facet_grid( ~ Site_1, scales="free") +
+  scale_fill_manual(values = c(
+    "Upland" = "#20063B",
+    "Transition" = "#FFBC42",
+    "Swamp" = "darkgrey",
+    "Wetland" = "#419973",
+    "Surface Water" = "#25ABE6"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Sulfate (mM)", title = paste0("Total Samples: ", nrow(so4_cl_data))) +
+  theme(
+    panel.spacing = unit(.05, "lines"), 
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1))+ 
+  theme(text = element_text(size = 25))+ 
+  labs(fill="Zone")
+
+viz_so4_plot
+
+# Save as a PNG
+png("COMPASS_SynopticCB_SO4_n.png", width = 3000, height = 1000, res = 150)
+print(viz_so4_plot)  # For ggplot objects, use print()
+dev.off()
+
+```
+
+
 
 ##Read in water level data
 ```{r}
@@ -383,7 +454,6 @@ dev.off()
 
 #Compute ANOVA/Pairwise Stats per Facet
 ##Significance asterisks
-library(rstatix)
 
 stats <- data_plotting_so4_cl %>%
   filter(str_detect(Depth_cm, "10")) %>%
@@ -1107,7 +1177,7 @@ dev.off()
 
 ```
 
-## Scatterplot of Sulfate Depletion by Depth
+## Barplot of Sulfate Depletion by Depth
 ```{r Barplots of SO4 Depletion by Depth, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
 
 #Plot data and change colors based on Zone:
@@ -1139,39 +1209,88 @@ dev.off()
 ## Barplots of SO4/Cl by Depth
 ```{r Barplots of SO4/Cl by Depth, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
 
+data_plotting_so4_cl <- data_plotting_so4_cl %>% 
+  filter(Zone != "SW")
+
 #Plot data and change colors based on Zone:
-viz_cl_plot_depth <- ggplot(data_plotting_so4_cl, aes(x = Zone, y = Cl_mM, fill = as.character(Depth_cm))) +
-  geom_boxplot() +
-  facet_wrap( ~ Site, scales="free", nrow = 1) +
+# viz_cl_plot_depth <- ggplot(data_plotting_so4_cl, aes(x = Zone_1, y = Cl_mM, fill = as.character(Depth_cm))) +
+#   geom_boxplot() +
+#   facet_wrap( ~ Site, scales="free", nrow = 1) +
+#   scale_fill_manual(values = c(
+#     "10" = "lightblue",
+#     "20" = "blue",
+#     "45" = "darkblue"
+#   )) +
+#   theme_classic() +
+#   labs(x = "Sampling Depth (cm)", y = "Chloride (mM)", title = "Samples: Chloride") +
+#   # theme(
+#   #   panel.spacing = unit(.05, "lines"), 
+#   #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
+#   theme(text = element_text(size = 30))
+# 
+# viz_cl_plot_depth
+
+
+##Calculate average and sd
+so4_cl_avg <- data_plotting_so4_cl %>%
+  group_by(Site_1, Zone_1, Depth_cm) %>%
+   dplyr::summarize(mean_SO4 = mean(SO4_mM, na.rm=TRUE), 
+            sd_SO4 = sd(SO4_mM, na.rm=TRUE))
+
+
+viz_so4_plot_depth <- ggplot(so4_cl_avg, aes(x = as.numeric(Depth_cm), y = mean_SO4, color = Zone_1, group = Zone_1)) +
+  geom_point(size = 3) + 
+  geom_errorbar(aes(ymin = mean_SO4 - sd_SO4, ymax = mean_SO4 + sd_SO4), width = 0.2) + 
+  geom_line() + 
+  facet_wrap( ~ Site_1, scales="free") + 
   scale_fill_manual(values = c(
-    "10" = "lightblue",
-    "20" = "blue",
-    "45" = "darkblue"
-  )) +
+    "Upland" = "#20063B",
+    "Transition" = "#FFBC42",
+    "Swamp" = "darkgrey",
+    "Wetland" = "#419973",
+    "Surface Water" = "#25ABE6"
+  )) + 
   theme_classic() +
-  labs(x = "Sampling Depth (cm)", y = "Chloride (mM)", title = "Samples: Chloride") +
-  # theme(
-  #   panel.spacing = unit(.05, "lines"), 
-  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) + 
-  theme(text = element_text(size = 30))
+  labs(x = "Sampling Depth (cm)", y = "Sulfate (mM)", title = "Sulfate by Depth") +
+  theme(text = element_text(size = 20)) + 
+  coord_flip() + 
+  scale_x_continuous(trans = "reverse")
 
-viz_cl_plot_depth
+viz_so4_plot_depth
 
 
-viz_so4_plot_depth <-  ggplot(data_plotting_so4_cl, aes(x = Zone, y = SO4_mM, fill = as.character(Depth_cm))) +
+##Anova
+# Model: Sulfate explained by Depth, Site, and Zone, including interactions
+# * indicates all main effects and interaction terms
+anova_model <- aov(SO4_mM ~ Depth_cm * Site * Zone, data = data_plotting_so4_cl)
+
+# Display results
+summary(anova_model)
+
+#check normality
+plot(anova_model, 2)
+
+stats <- data_plotting_so4_cl %>%
+  group_by(Site, Zone) %>%
+  wilcox_test(SO4_mM ~ Depth_cm) %>% # or anova_test()
+  add_significance() %>%
+  add_xy_position(x = "Zone") # Automate p-value positions
+
+viz_so4_plot_depth <-  ggplot(data_plotting_so4_cl, aes(x = Depth_cm, y = SO4_mM, fill = Zone_1)) +
   geom_boxplot() +
   facet_wrap( ~ Site, scales="free", nrow = 1) +
   scale_fill_manual(values = c(
-    "10" = "lightblue",
-    "20" = "blue",
-    "45" = "darkblue"
+    "Upland" = "#20063B",
+    "Transition" = "#FFBC42",
+    "Swamp" = "darkgrey",
+    "Wetland" = "#419973",
+    "Surface Water" = "#25ABE6"
   )) +
   theme_classic() +
   labs(x = "Sampling Depth (cm)", y = "Sulfate (mM)", title = "Sulfate by Depth") +
-  # theme(
-  #   panel.spacing = unit(.05, "lines"), 
-  #   panel.border = element_rect(color = "black", fill = NA, linewidth = 1))+ 
-  theme(text = element_text(size = 30))
+  theme(text = element_text(size = 30)) +
+  labs(fill = "Depth") +
+  coord_flip()
 
 viz_so4_plot_depth
 
