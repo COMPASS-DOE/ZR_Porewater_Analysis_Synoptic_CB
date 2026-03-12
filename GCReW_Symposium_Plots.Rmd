@@ -124,7 +124,7 @@ dev.off()
 
 
 # Find all files recursively
-files <- list.files(path = "Raw Data/Soil VWC/", full.names = TRUE, recursive = TRUE)
+files <- list.files(path = "Raw Data/Water Level/", full.names = TRUE, recursive = TRUE)
 # Read and combine
 data_list <- lapply(files, read_parquet)
 temps <- do.call(rbind, data_list)
@@ -210,13 +210,13 @@ temps$TIMESTAMP_round <- round_date(temps$TIMESTAMP, "15 mins")
 #ensure there is only one data observation per hour 
 temps_clean <-   temps %>% 
     group_by(TIMESTAMP_round, Site, Plot) %>%
-    summarize(Value = mean(Value_MAC)) 
+    summarize(Water_level = mean(Value_MAC)) 
 
 #join them 
-so4_cl_data_L2temp <- so4_cl_data %>% 
+so4_cl_data_L2temp <- so4_cl_data_L2temp %>% 
   left_join(temps_clean, by=c("Site"="Site", "DateTime_round"="TIMESTAMP_round", "Zone" = "Plot"))
 
-
+write.csv(so4_cl_data_L2temp, file = "SO4_L2_Data.csv")
 
 ```
 
@@ -286,6 +286,65 @@ dev.off()
 # Save as a PNG
 png("Soil_VWC_vs_Cl_TR.png", width = 2000, height = 1200, res = 100) 
 print(viz_cl_wl_plot)  # For ggplot objects, use print()
+dev.off() 
+
+```
+
+
+##Pairs Plots
+```{r Pairs Plot}
+colnames(so4_cl_data_L2temp)
+pairs_data <- so4_cl_data_L2temp %>% 
+  select(SO4_mM, GW_salinity, Soil_EC, Soil_VWC, Water_level) %>% 
+  rename("Groundwater Salinity" = GW_salinity, 
+         "Soil Electrical Conductivity" = Soil_EC, 
+         "Soil Volumetric Water Content" = Soil_VWC, 
+         "Groundwater Water Level" = Water_level)
+
+# , Soil_VWC, Soil_Salinity, Water_level
+
+pairs(pairs_data, pch=19, col='orange', upper.panel=panel.smooth)
+
+ggplot(pairs_data, aes(x = GW_salinity, y = SO4_mM)) +
+  geom_point(na.rm = TRUE)+ 
+  ylim(0, 45)+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+# install.packages("GGally")
+# install.packages("ggplot2")
+library(GGally)
+library(ggplot2)
+
+ggpairs(pairs_data,
+        lower = list(continuous = wrap("smooth", method = "lm")), # Add linear regression line to lower panels
+        upper = list(continuous = wrap("cor", method = "pearson")), # Add correlation coefficients to upper panels
+        diag = list(continuous = wrap("densityDiag")) # Add density plots to the diagonal
+)
+
+
+pairs_long <- pairs_data %>%
+  pivot_longer(cols = -SO4_mM, names_to = "variable", values_to = "value")
+
+so4_env <- ggplot(pairs_long, aes(x = value, y = SO4_mM)) +
+  geom_point() +
+  geom_smooth(method = "lm") + 
+  # Adds the equation (y = mx + b)
+  stat_regline_equation(label.y = 43, aes(label = ..eq.label..)) +
+  # Adds the p-value and R^2
+  stat_cor(label.y = 40, aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~"))) +
+  facet_wrap(~ variable, scales = "free", nrow = 1) +
+  labs(title = "Sulfate versus environmental variables",
+       y = "SO4 (mM)",
+       x = "Value") +
+  theme_classic() + 
+  ylim(0, 45)
+
+so4_env
+
+# Save as a PNG
+png("Sulfate versus environmental variables.png", width = 3000, height = 1200, res = 300) 
+print(so4_env)  # For ggplot objects, use print()
 dev.off() 
 
 ```
