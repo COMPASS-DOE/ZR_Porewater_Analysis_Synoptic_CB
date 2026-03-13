@@ -25,7 +25,8 @@ library(ggpmisc)
 library(arrow)
 library(lubridate)
 library(rstatix)
-
+library(purrr)
+library(readr)
 ```
 
 ##Grab Compiled Porewater Data Files
@@ -205,7 +206,7 @@ viz_so4_boxplot <- ggplot(data_plotting_so4_cl, aes(x = Zone_1, y = SO4_mM, fill
     "Surface Water" = "#25ABE6"
   ), labels = c("Upland", "Swamp", "Transition", "Wetland", "Surface Water")) +
   theme_classic() +
-  labs(x = " ", y = "Sulfate (mM)", title = "Fig 1. Sulfate across Site and Zones") +
+  labs(x = " ", y = "Sulfate (mM)", title = "Fig 1. Sulfate Across Sites and Zones") +
   theme(
     panel.spacing = unit(0.5, "lines"), 
     panel.border = element_rect(color = "black", fill = NA, linewidth = 1)) +
@@ -260,7 +261,7 @@ so4_env <- ggplot(pairs_long, aes(x = value, y = SO4_mM, color = as.character(De
   geom_smooth(method = "lm", se = FALSE, linewidth = 2) + 
   facet_wrap(~ variable+Units, scales = "free", nrow = 1, strip.position = "bottom") +
   labs(title = "Fig 3. Sulfate versus environmental variables",
-       y = "SO4 (mM)",
+       y = "Sulfate (mM)",
        x = "", 
        color = "Depth (cm)") +
   theme_classic() + 
@@ -375,9 +376,15 @@ plot(anova_model, 2)
 
 stats <- data_plotting_so4_cl %>%
   group_by(Site, Zone) %>%
-  wilcox_test(SO4_mM ~ Depth_cm) %>% # or anova_test()
+  anova_test(SO4_mM ~ as.character(Depth_cm)) %>% # or anova_test()
   add_significance() %>%
   add_xy_position(x = "Zone") # Automate p-value positions
+
+stats_clean <- stats %>%
+  mutate(groups = map_chr(groups, ~ paste0('c("', paste(.x, collapse = '", "'), '")')))
+
+readr::write_csv(stats_clean, file = "SO4_by_depth_wilcox_stats.csv")
+
 
 # Save as a PNG
 png("SO4_by_depth_avgs.png", width = 1800, height = 550, res = 100) 
