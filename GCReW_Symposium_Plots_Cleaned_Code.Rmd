@@ -177,14 +177,14 @@ data_plotting_so4_cl <- data_plotting_so4_cl %>%
 data_plotting_so4_cl <- data_plotting_so4_cl %>% 
     mutate(
     Site_1 = case_when(
-      Site == "SWH" ~ "Sweethall",
+      Site == "SWH" ~ "Sweet Hall",
       Site == "GCW" ~ "GCReW",
       Site == "MSM" ~ "Moneystump",
       Site == "GWI" ~ "Goodwin",
       TRUE ~ Site  # keep everything else unchanged
     )
   ) %>%
-  mutate(Site_1 = factor(Site_1, levels = c("Sweethall", "GCReW", "Moneystump", "Goodwin")))
+  mutate(Site_1 = factor(Site_1, levels = c("Sweet Hall", "GCReW", "Moneystump", "Goodwin")))
 
 
 #Plot samples to get a first look at concentrations (sanity check)
@@ -273,7 +273,7 @@ so4_env <- ggplot(pairs_long, aes(x = value, y = SO4_mM, color = as.character(De
   scale_color_manual(values = c(
    "10" = "lightblue",
     "20" = "blue",
-    "45" = "darkblue"))+ 
+    "45" = "black"))+ 
   theme(legend.position = "bottom")+ 
   theme(
     strip.background = element_blank(), # Remove the background of the strip
@@ -285,7 +285,7 @@ so4_env <- ggplot(pairs_long, aes(x = value, y = SO4_mM, color = as.character(De
 so4_env
 
 # Save as a PNG
-png("Sulfate versus environmental variables.png", width = 1800, height = 900, res = 100) 
+png("Sulfate versus environmental variables.png", width = 1800, height = 850, res = 100) 
 print(so4_env)  # For ggplot objects, use print()
 dev.off() 
 
@@ -326,15 +326,50 @@ dev.off()
 
 ```
 
-## Plot Averaged Points of SO4/Cl by Depth - USE IN POSTER
-```{r Plot Averaged Points of SO4/Cl by Depth, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
+## Barplots of SO4/Cl by Year, Site, and Zone - USE IN POSTER
+```{r Barplots of SO4/Cl, echo=FALSE, warning=FALSE, message = FALSE, fig.width=16, fig.height=10, dpi = 300}
 
-data_plotting_so4_cl <- data_plotting_so4_cl %>% 
+# Plot data and change colors based on Zone:
+so4_cl_SW <- data_plotting_so4_cl %>%
+  filter(Zone == "SW") %>%
+  filter(str_detect(Depth_cm, "0"))
+
+viz_so4_plot <-  ggplot(so4_cl_SW, aes(x = as.character(Date), y = SO4_mM, fill = Zone)) +
+  geom_boxplot() +
+  facet_wrap( ~ Site_1, scales="free") +
+  scale_fill_manual(values = c(
+    "UP" = "#20063B",
+    "TR" = "#FFBC42",
+    "SWAMP" = "darkgrey", 
+    "WC" = "#419973", 
+    "SW" = "#25ABE6"
+  )) +
+  theme_classic() +
+  labs(x = " ", y = "Sulfate (mM)", title = "Fig 4. Sulfate in Surface Water at 0 cm") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+ 
+  theme(text = element_text(size = 28))+ 
+  theme(axis.title.y = element_text(margin = margin(r = 20), size = 28)) + 
+  theme(legend.position = "none") + 
+  theme(plot.title = element_text(size = 28))
+
+viz_so4_plot
+
+# Save as a PNG
+png("Sulfate in Surface Water at 0 cm.png", width = 1850, height = 1100, res = 100) 
+print(viz_so4_plot)  # For ggplot objects, use print()
+dev.off()
+
+```
+
+## Plot Averaged Points of SO4/Cl by Depth - USE IN POSTER
+```{r Plot Averaged Points of SO4/Cl by Depth, echo=FALSE, warning=FALSE, message = FALSE}
+
+data_plotting_so4_cl_nosw <- data_plotting_so4_cl %>% 
   filter(Zone != "SW")
 
 
 ##Calculate average and sd
-so4_cl_avg <- data_plotting_so4_cl %>%
+so4_cl_avg <- data_plotting_so4_cl_nosw %>%
   group_by(Site_1, Zone_1, Depth_cm) %>%
    dplyr::summarize(mean_SO4 = mean(SO4_mM, na.rm=TRUE), 
             sd_SO4 = sd(SO4_mM, na.rm=TRUE))
@@ -345,7 +380,7 @@ viz_so4_plot_depth <- ggplot(so4_cl_avg, aes(x = as.numeric(Depth_cm), y = mean_
   geom_errorbar(aes(ymin = mean_SO4 - sd_SO4, ymax = mean_SO4 + sd_SO4), width = 0.5, size = 1) + 
   geom_line(size = 1.5) + 
   facet_wrap( ~ Site_1, scales="free", nrow = 1) + 
-  scale_fill_manual(values = c(
+  scale_color_manual(values = c(
     "Upland" = "#20063B",
     "Transition" = "#FFBC42",
     "Swamp" = "darkgrey",
@@ -384,6 +419,9 @@ stats_clean <- stats %>%
   mutate(groups = map_chr(groups, ~ paste0('c("', paste(.x, collapse = '", "'), '")')))
 
 readr::write_csv(stats_clean, file = "SO4_by_depth_wilcox_stats.csv")
+
+##plot a histogram of the data
+hist(data_plotting_so4_cl$SO4_mM)
 
 
 # Save as a PNG
